@@ -53,10 +53,37 @@ Refernece:
 
 https://medium.com/@tubelwj/python-outlier-detection-iqr-method-and-z-score-implementation-8e825edf4b32
 """
-function IQR_outlier_detection(data::Vector{Float64}; k=3)
+function IQR_outlier_detection(data::Vector{Float64}; k=1.5)
     q1, q3 = Statistics.quantile(data, [0.25, 0.75])
     IQR = q3 - q1
     lower = q1 - k*IQR
     upper = q3 + k*IQR
     return filter(x -> lower <= x <= upper, data)
 end
+
+function _STD_(data::AbstractDataFrame; k = 1.5)
+    name = names(data)
+    std_vec = []
+    for nn in name
+        d = IQR_outlier_detection(data[!, nn], k=k)
+        push!(std_vec, Statistics.std(d) )
+    end
+    return DataFrame(name=name, std=std_vec)
+end
+
+
+# function IQR_outlier_detection(data::AbstractDataFrame; k = 1.5)
+#     name = names(data)
+#     data_vec = []
+#     itr = []
+#     for nn in name
+#         d = IQR_outlier_detection(data[!, nn], k=k)
+#         push!(data_vec, d)
+#         push!(itr, length(d))
+#     end
+#     itr_min = minimum(itr)
+#     for (i,d) in enumerate(data_vec)
+#         data_vec[i] = d[[1:itr_min...]]
+#     end
+#     return DataFrame(hcat(data_vec...), name)
+# end
