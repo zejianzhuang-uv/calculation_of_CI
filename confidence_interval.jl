@@ -7,6 +7,8 @@ using PrettyTables
 
 
 """
+Calaculate a confidence interval of a sample in 1, 2 -sigma confidence level
+
 Reference:
 
 1. https://scikit-hep.org/iminuit/notebooks/error_bands.html
@@ -23,13 +25,17 @@ function confidence_interval(data::Vector{Float64}; k=1.5, cl=68e-2)
     filter_data = IQR_outlier_detection(data, k=k)
     # mean = Statistics.mean(filter_data)
     std = Statistics.std(filter_data)
-
+    # cl : z
+    # 0.68: 1 
+    # 0.95:  1.96
     alpha = 1. - cl
     z = Statistics.quantile(Distributions.Normal(), 1- alpha/2)
     # Calculate margin of error
     merr = z * std
     return merr
 end
+
+
 function confidence_interval(data::AbstractDataFrame; k=1.5, cl=68e-2, formatters="%.1f", pretty_print=true)
     name = names(data)
     merr_vec = Float64[]
