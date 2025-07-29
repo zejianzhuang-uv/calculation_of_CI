@@ -1,31 +1,71 @@
 
-
+using DataFrames
 import Statistics
 import Distributions
 using PrettyTables
 
-"""
-Refernece:
 
-https://rpubs.com/JuliaWorkshop/Confidence_Intervals_Julia
+
 """
-function confidence_interval(data::Vector{Float64}; k=3, cl=68e-2)
+Reference:
+
+1. https://scikit-hep.org/iminuit/notebooks/error_bands.html
+
+2. https://www.geo.fu-berlin.de/en/v/soga-py/Basics-of-statistics/Inferential-Statistics/Interval-Estimate/index.html
+
+3. https://rowannicholls.github.io/python/statistics/confidence_intervals.html
+
+4. https://rowannicholls.github.io/python/statistics/agreement/coefficient_of_variation.html
+
+5. https://datascience.stackexchange.com/questions/124648/understand-and-compute-confidence-interval-and-coefficient-of-variation-for-regr
+"""
+function confidence_interval(data::Vector{Float64}; k=1.5, cl=68e-2)
     filter_data = IQR_outlier_detection(data, k=k)
     # mean = Statistics.mean(filter_data)
     std = Statistics.std(filter_data)
 
     alpha = 1. - cl
-    t = Statistics.quantile(Distributions.TDist(length(filter_data) - 1), 1- alpha/2)
+    z = Statistics.quantile(Distributions.Normal(), 1- alpha/2)
     # Calculate margin of error
-    merr = t * (std / sqrt(length(filter_data) ) )
+    merr = z * std
     return merr
 end
-
-function confidence_interval(data::AbstractDataFrame; k=3, cl=68e-2, formatters="%.3f", pretty_print=true)
+function confidence_interval(data::AbstractDataFrame; k=1.5, cl=68e-2, formatters="%.1f", pretty_print=true)
     name = names(data)
     merr_vec = Float64[]
     for nn in name
         merr = confidence_interval(data[!, nn], k=k, cl=cl) 
+        push!(merr_vec, merr)
+    end
+    df = DataFrame(name = name, merr = merr_vec)
+    if pretty_print == true
+        pretty_table(df, formatters=ft_printf(formatters), title="Confidenc level: $cl", title_alignment = :c, header_crayon = crayon"yellow bold")
+    end
+    return df
+end
+
+
+"""
+Refernece:
+https://rpubs.com/JuliaWorkshop/Confidence_Intervals_Julia
+"""
+function mean_confidence_interval(data::Vector{Float64}; k=1.5, cl=68e-2)
+    filter_data = IQR_outlier_detection(data, k=k)
+    # mean = Statistics.mean(filter_data)
+    std = Statistics.std(filter_data)
+
+    alpha = 1. - cl
+    z = Statistics.quantile(Distributions.Normal(), 1- alpha/2)
+    # Calculate margin of error
+    merr = z * (std / sqrt(length(filter_data) ) )
+    return merr
+end
+
+function mean_confidence_interval(data::AbstractDataFrame; k=1.5, cl=68e-2, formatters="%.3f", pretty_print=true)
+    name = names(data)
+    merr_vec = Float64[]
+    for nn in name
+        merr = mean_confidence_interval(data[!, nn], k=k, cl=cl) 
         push!(merr_vec, merr)
     end
     df = DataFrame(name = name, merr = merr_vec)
@@ -61,29 +101,34 @@ function IQR_outlier_detection(data::Vector{Float64}; k=1.5)
     return filter(x -> lower <= x <= upper, data)
 end
 
-function _STD_(data::AbstractDataFrame; k = 1.5)
+"""
+Evaluate the error of data within 1-sigma level
+"""
+function _STD_(data::AbstractDataFrame; k = 1.5, formatters="%.1f")
     name = names(data)
-    std_vec = []
+    std_vec = Float64[]
     for nn in name
         d = IQR_outlier_detection(data[!, nn], k=k)
         push!(std_vec, Statistics.std(d) )
     end
-    return DataFrame(name=name, std=std_vec)
+    df = DataFrame(name=name, std=std_vec)
+    pretty_table(df, formatters=ft_printf(formatters), title="std err", title_alignment = :c, header_crayon = crayon"yellow bold")
+    return df
 end
 
 
-# function IQR_outlier_detection(data::AbstractDataFrame; k = 1.5)
-#     name = names(data)
-#     data_vec = []
-#     itr = []
-#     for nn in name
-#         d = IQR_outlier_detection(data[!, nn], k=k)
-#         push!(data_vec, d)
-#         push!(itr, length(d))
-#     end
-#     itr_min = minimum(itr)
-#     for (i,d) in enumerate(data_vec)
-#         data_vec[i] = d[[1:itr_min...]]
-#     end
-#     return DataFrame(hcat(data_vec...), name)
-# end
+function IQR_outlier_detection(data::AbstractDataFrame; k = 1.5)
+    name = names(data)
+    data_vec = []
+    itr = []
+    for nn in name
+        d = IQR_outlier_detection(data[!, nn], k=k)
+        push!(data_vec, d)
+        push!(itr, length(d))
+    end
+    itr_min = minimum(itr)
+    for (i,d) in enumerate(data_vec)
+        data_vec[i] = d[[1:itr_min...]]
+    end
+    return DataFrame(hcat(data_vec...), name)
+end
