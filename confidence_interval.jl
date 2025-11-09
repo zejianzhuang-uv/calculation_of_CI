@@ -2,7 +2,7 @@
 using DataFrames
 import Statistics
 import Distributions
-using PrettyTables
+# using PrettyTables
 
 
 
@@ -31,22 +31,22 @@ function confidence_interval(data::Vector{Float64}; k=1.5, cl=68e-2)
     alpha = 1. - cl
     z = Statistics.quantile(Distributions.Normal(), 1- alpha/2)
     # Calculate margin of error
-    merr = z * std
-    return merr
+    err = z * std
+    return err
 end
 
 
-function confidence_interval(data::AbstractDataFrame; k=1.5, cl=68e-2, formatters="%.1f", pretty_print=true)
+function confidence_interval(data::AbstractDataFrame; k=1.5, cl=68e-2)#, formatters="%.1f", pretty_print=true)
     name = names(data)
-    merr_vec = Float64[]
+    err_vec = Float64[]
     for nn in name
-        merr = confidence_interval(data[!, nn], k=k, cl=cl) 
-        push!(merr_vec, merr)
+        err = confidence_interval(data[!, nn], k=k, cl=cl) 
+        push!(err_vec, err)
     end
-    df = DataFrame(name = name, merr = merr_vec)
-    if pretty_print == true
-        pretty_table(df, formatters=ft_printf(formatters), title="Confidenc level: $cl", title_alignment = :c, header_crayon = crayon"yellow bold")
-    end
+    df = DataFrame(name = name, err = err_vec)
+    # if pretty_print == true
+    #     pretty_table(df, formatters=ft_printf(formatters), title="Confidenc level: $cl", title_alignment = :c, header_crayon = crayon"yellow bold")
+    # end
     return df
 end
 
@@ -110,7 +110,7 @@ end
 """
 Evaluate the error of data within 1-sigma level
 """
-function _STD_(data::AbstractDataFrame; k = 1.5, formatters="%.1f")
+function _STD_(data::AbstractDataFrame; k = 1.5)
     name = names(data)
     std_vec = Float64[]
     for nn in name
@@ -118,7 +118,18 @@ function _STD_(data::AbstractDataFrame; k = 1.5, formatters="%.1f")
         push!(std_vec, Statistics.std(d) )
     end
     df = DataFrame(name=name, std=std_vec)
-    pretty_table(df, formatters=ft_printf(formatters), title="std err", title_alignment = :c, header_crayon = crayon"yellow bold")
+    # pretty_table(df, formatters=ft_printf(formatters), title="std err", title_alignment = :c, header_crayon = crayon"yellow bold")
+    return df
+end
+
+function _MEAN_(data::AbstractDataFrame; k=1.5)
+    name = names(data)
+    mean_vec = Float64[]
+    for nn in name
+        d = IQR_outlier_detection(data[!, nn], k=k)
+        push!(mean_vec, Statistics.mean(d))
+    end
+    df = DataFrame(name = name, mean=mean_vec)
     return df
 end
 
